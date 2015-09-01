@@ -5,6 +5,7 @@ import android.app.FragmentManager;
 import android.app.ProgressDialog;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
+import android.os.Parcelable;
 import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
@@ -18,32 +19,25 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.CheckBox;
-import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.Spinner;
-import android.widget.Toast;
-
-import com.android.volley.AuthFailureError;
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
 import com.devspark.appmsg.AppMsg;
 import com.pierce.dianfei.model.Building;
 import com.pierce.dianfei.model.Dianfei;
 import com.pierce.dianfei.model.Flow;
 import com.pierce.dianfei.model.ReturnInfo;
 import com.pierce.dianfei.model.Section;
-
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
-
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.io.StreamCorruptedException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -86,6 +80,10 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     List<Section> sectionList=new ArrayList<>();
     List<Building> buildingList=new ArrayList<>();
     List<Flow> flowList=new ArrayList<>();
+    int p1=0;
+    int p2=0;
+    int p3=0;
+    String room;
     List<Dianfei> dianfeiList=new ArrayList<>();
 
     boolean isQueryClicked=false;
@@ -93,20 +91,88 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
 
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        SharedPreferences preferences=getSharedPreferences("userinfo",MODE_PRIVATE);
+        if (preferences.getBoolean("binded",false)){
+            p1=preferences.getInt("section",0);
+            p2=preferences.getInt("building",0);
+            p3=preferences.getInt("flow",0);
+            room=preferences.getString("room", "adv");
+            String viewstate=preferences.getString("viewstate","");
+            String eventvalidation=preferences.getString("eventvalidation","");
+
+           /* FileInputStream in=null;
+            ObjectInputStream ois=null;
+            try {
+                ois=new ObjectInputStream(openFileInput("section.dat"));
+                Section s= (Section) ois.readObject();
+                sectionList.clear();
+                buildingList.clear();
+                flowList.clear();
+                while (s!=null){
+                    sectionList.add(s);
+                    Log.i(TAg, s.toString());
+                    s= (Section) ois.readObject();
+
+                }
+                ois.close();
+                ois=new ObjectInputStream(openFileInput("building.dat"));
+                Building b=(Building) ois.readObject();
+                while (b!=null){
+                    buildingList.add(b);
+                    Log.i(TAg, b.toString());
+                    b=(Building) ois.readObject();
+
+                }
+                ois.close();
+                ois=new ObjectInputStream(openFileInput("flow.dat"));
+                Flow f= (Flow) ois.readObject();
+                while (f!=null){
+                    flowList.add(f);
+                    Log.i(TAg, f.toString());
+                    f= (Flow) ois.readObject();
+
+                }
+
+
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (StreamCorruptedException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            }finally {
+                if (in!=null){
+                    try {
+                        in.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+                if (ois!=null){
+                    try {
+                        ois.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }*/
+        }
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         ButterKnife.bind(this);
-        //setSupportActionBar(toolbar);
-
         mDialog=new ProgressDialog(this);
         mDialog.setMessage("Loading.......");
-
         task=new DianfeiTask();
         task.setCallback(this);
         task.query(info);
-
-        //task.execute(info);
         sectionAdapter=new SpinnerAdapter(this, R.layout.spinner_item, R.id.spinnerItem, sectionList);
         buildingAdapter=new SpinnerAdapter(this, R.layout.spinner_item, R.id.spinnerItem, buildingList);
         flowAdapter=new SpinnerAdapter(this, R.layout.spinner_item, R.id.spinnerItem, flowList);
@@ -117,14 +183,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         spnFlow.setAdapter(flowAdapter);
         spnFlow.setOnItemSelectedListener(this);
 
-        /*SharedPreferences sharedPreferences=getSharedPreferences("userinfo",MODE_PRIVATE);
-        if (sharedPreferences.getString("binded","error").equals("error")){
-            task.query(info);
-        }
-        else{
-            //spnSection.setSelection();
-        }*/
-
             btnQuery.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -133,7 +191,6 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                         &&!TextUtils.isEmpty(info.getFlow())&&!TextUtils.isEmpty(info.getRoom())){
                     isQueryClicked=true;
                     task.query(info);
-                    //task.execute(info);
                     Log.i(TAg, info.toString());
                     mDialog.show();
 
@@ -156,6 +213,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                 info.setFlow("");
                 info.setRoom("");
                 edtRoom.setText("");
+                p1=position;
 
                 task.query(info);
                 break;
@@ -166,12 +224,14 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                 info.setState(2);
                 task.query(info);
                 edtRoom.setText("");
+                p2=position;
                 break;
             case R.id.spn_flow:
                 info.setFlow( parent.getItemAtPosition(position).toString());
                 info.setState(3);
                 info.setRoom("");
                 edtRoom.setText("");
+                p3=position;
                 break;
 
         }
@@ -220,7 +280,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                 sectionAdapter.notifyDataSetChanged();
                 buildingAdapter.notifyDataSetChanged();
                 flowAdapter.notifyDataSetChanged();
-
+                spnSection.setSelection(p1);
                 break;
             case 1:
                 buildingList.clear();
@@ -228,11 +288,13 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                 buildingList.addAll(parseTask.getBuildings(info));
                 buildingAdapter.notifyDataSetChanged();
                 flowAdapter.notifyDataSetChanged();
+                spnBuilding.setSelection(p2);
                 break;
             case 2:
                 flowList.clear();
                 flowList.addAll(parseTask.getFlows(info));
                 flowAdapter.notifyDataSetChanged();
+                spnFlow.setSelection(p3);
                 break;
             case 3:
                 dianfeiList.clear();
@@ -258,14 +320,59 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         SharedPreferences sharedPreferences=getSharedPreferences("userinfo",MODE_PRIVATE);
         SharedPreferences.Editor editor=sharedPreferences.edit();
         editor.clear();
-        editor.putString("binded","bind");
-        editor.putString("section",info.getSection());
-        editor.putString("building",info.getBuilding());
-        editor.putString("flow",info.getFlow());
-        editor.putString("room",info.getRoom());
+        editor.putBoolean("binded",true);
+        editor.putInt("section", p1);
+        editor.putInt("building", p2);
+        editor.putInt("flow",p3);
+        editor.putString("room", info.getRoom());
         editor.putString("viewstate", info.getViewstate());
         editor.putString("eventvalidation", info.getEventvalidation());
         editor.commit();
+        ObjectOutputStream oos=null;
+        FileOutputStream out = null;
+        try {
+            out = openFileOutput("section.dat",MODE_PRIVATE);
+            oos=new ObjectOutputStream(out);
+            for (Section s:sectionList){
+                oos.writeObject(s);
+            }
+            oos.writeObject(null);
+            oos.close();
+            oos=new ObjectOutputStream(openFileOutput("building.dat",MODE_PRIVATE));
+            for (Building b:buildingList){
+                oos.writeObject(b);
+            }
+            oos.writeObject(null);
+            oos.close();
+            oos=new ObjectOutputStream(openFileOutput("flow.dat",MODE_PRIVATE));
+            for (Flow f:flowList){
+                oos.writeObject(f);
+            }
+            oos.writeObject(null);
+            Log.i(TAg,"success");
+
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+            Log.i(TAg,"error");
+        } catch (IOException e) {
+            e.printStackTrace();
+            Log.i(TAg, "error2");
+        }finally {
+            if (oos!=null){
+                try {
+                    oos.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }if (out!=null){
+                try {
+                    out.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
     }
 
     public void showInfo(String message) {

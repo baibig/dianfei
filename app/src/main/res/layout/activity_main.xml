@@ -28,6 +28,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:id="@+id/spn_section"
+                android:prompt="@string/spn_prompt"
                 android:layout_weight="1" />
         </LinearLayout>
 
@@ -44,6 +45,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:id="@+id/spn_building"
+                android:prompt="@string/spn_prompt"
                 android:layout_weight="1" />
         </LinearLayout>
 
@@ -60,6 +62,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:id="@+id/spn_flow"
+                android:prompt="@string/spn_prompt"
                 android:layout_weight="1" />
         </LinearLayout>
 
